@@ -12,10 +12,16 @@ class MainWindow(ctk.CTk):
         self.api = api
         self.user = user
         self.title(f"EduBoard – {user.name} ({user.role.value})")
-        self.geometry("780x480")
+        self.geometry("880x620")
+        self.minsize(720, 520)
 
-        tabview = ctk.CTkTabview(self, width=760, height=430)
-        tabview.pack(padx=10, pady=10, fill="both", expand=True)
+        # Grid místo pack: tabview se roztahuje (weight=1), patička s tlačítkem
+        # má vlastní pevný řádek a nezmizí, ani když je obsah dlouhý.
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        tabview = ctk.CTkTabview(self)
+        tabview.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="nsew")
 
         tab_schedule = tabview.add("Rozvrh")
         tab_grades = tabview.add("Žákovská knížka")
@@ -23,7 +29,12 @@ class MainWindow(ctk.CTk):
         ScheduleView(tab_schedule, api, user).pack(fill="both", expand=True, padx=10, pady=10)
         GradesView(tab_grades, api, user).pack(fill="both", expand=True, padx=10, pady=10)
 
-        ctk.CTkButton(self, text="Odhlásit se", command=self._logout).pack(pady=(0, 10))
+        footer = ctk.CTkFrame(self, fg_color="transparent")
+        footer.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        footer.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(footer, text=f"Přihlášen(a): {user.name}").grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(footer, text="Odhlásit se", command=self._logout).grid(row=0, column=1, sticky="e")
 
     def _logout(self):
         SessionManager.instance().clear()

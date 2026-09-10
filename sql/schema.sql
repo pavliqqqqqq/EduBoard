@@ -22,11 +22,21 @@ create table schedule (
     period int not null,
     subject text not null,
     room text default '',
-    teacher text default ''
+    teacher text default '',
+    unique (class_id, day, period)  -- nutné pro upsert při úpravě rozvrhu
+);
+
+create table subjects (
+    id uuid primary key default gen_random_uuid(),
+    class_id text not null,
+    name text not null,
+    unique (class_id, name)  -- nutné pro upsert při přidání nového předmětu
 );
 
 alter table grades enable row level security;
 alter table profiles enable row level security;
+alter table schedule enable row level security;
+alter table subjects enable row level security;
 
 create policy student_sees_own_grades on grades for select
     using (student_id = auth.uid());
@@ -37,6 +47,26 @@ create policy teacher_inserts_grades on grades for insert
                 where p.id = auth.uid() and p.role = 'teacher'
                 and p.class_id = (select class_id from profiles where id = student_id))
     );
+
+-- rozvrh a seznam předmětů vidí všichni přihlášení žáci/učitelé dané třídy
+create policy class_sees_schedule on schedule for select
+    using (exists (select 1 from profiles p where p.id = auth.uid() and p.class_id = schedule.class_id));
+
+create policy class_sees_subjects on subjects for select
+    using (exists (select 1 from profiles p where p.id = auth.uid() and p.class_id = subjects.class_id));
+
+-- upravovat rozvrh a přidávat předměty může jen učitel dané třídy
+create policy teacher_manages_schedule on schedule for all
+    using (exists (select 1 from profiles p
+                   where p.id = auth.uid() and p.role = 'teacher' and p.class_id = schedule.class_id))
+    with check (exists (select 1 from profiles p
+                        where p.id = auth.uid() and p.role = 'teacher' and p.class_id = schedule.class_id));
+
+create policy teacher_manages_subjects on subjects for all
+    using (exists (select 1 from profiles p
+                   where p.id = auth.uid() and p.role = 'teacher' and p.class_id = subjects.class_id))
+    with check (exists (select 1 from profiles p
+                        where p.id = auth.uid() and p.role = 'teacher' and p.class_id = subjects.class_id));
 
 create or replace function get_student_grades_with_average(p_student_id uuid)
 returns table(id uuid, subject text, value int, weight int, note text, weighted_average numeric)

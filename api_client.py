@@ -19,6 +19,19 @@ class BaseAPIClient(ABC):
     @abstractmethod
     def get_students(self, class_id: str) -> List[User]: ...
 
+    @abstractmethod
+    def get_subjects(self, class_id: str) -> List[str]: ...
+
+    @abstractmethod
+    def add_subject(self, class_id: str, name: str) -> None: ...
+
+    @abstractmethod
+    def set_schedule_item(self, class_id: str, day: int, period: int,
+                           subject: str, room: str, teacher: str) -> None: ...
+
+    @abstractmethod
+    def delete_schedule_item(self, class_id: str, day: int, period: int) -> None: ...
+
 
 class MockAPIClient(BaseAPIClient):
     """Simuluje chování backendu (Supabase RLS + RPC) lokálně pro vývoj/demo."""
@@ -45,6 +58,9 @@ class MockAPIClient(BaseAPIClient):
                 ScheduleItem(4, 2, "Tělocvik", "Hala", "Novák"),
             ]
         }
+        self._subjects = {
+            "3.B": ["Matematika", "Český jazyk", "Fyzika", "Angličtina", "Tělocvik"],
+        }
 
     def login(self, email, password):
         if email not in self._users or self._passwords[email] != password:
@@ -61,19 +77,48 @@ class MockAPIClient(BaseAPIClient):
         self._grades.setdefault(student_id, []).append(
             Grade(f"g{len(self._grades.get(student_id, [])) + 1}", subject, value, weight, note)
         )
+        class_id = self._class_id_for_student(student_id)
+        if class_id and subject not in self._subjects.setdefault(class_id, []):
+            self._subjects[class_id].append(subject)
+
+    def _class_id_for_student(self, student_id):
+        for u in self._users.values():
+            if u.id == student_id:
+                return u.class_id
+        return None
 
     def get_schedule(self, class_id):
-        return self._schedule.get(class_id, [])
+        return list(self._schedule.get(class_id, []))
 
     def get_students(self, class_id):
         return [u for u in self._users.values() if u.role == Role.STUDENT and u.class_id == class_id]
 
+    def get_subjects(self, class_id):
+        return list(self._subjects.get(class_id, []))
+
+    def add_subject(self, class_id, name):
+        subjects = self._subjects.setdefault(class_id, [])
+        if name not in subjects:
+            subjects.append(name)
+
+    def set_schedule_item(self, class_id, day, period, subject, room, teacher):
+        items = self._schedule.setdefault(class_id, [])
+        for i, it in enumerate(items):
+            if it.day == day and it.period == period:
+                items[i] = ScheduleItem(day, period, subject, room, teacher)
+                return
+        items.append(ScheduleItem(day, period, subject, room, teacher))
+
+    def delete_schedule_item(self, class_id, day, period):
+        items = self._schedule.get(class_id, [])
+        self._schedule[class_id] = [it for it in items if not (it.day == day and it.period == period)]
+
 
 class SupabaseAPIClient(BaseAPIClient):
     """
-    Očekávané Supabase objekty: tabulky profiles/grades/schedule + RLS
+    Očekávané Supabase objekty: tabulky profiles/grades/schedule/subjects + RLS
     + RPC funkce get_student_grades_with_average (viz sql/schema.sql).
-    Vážený průměr se počítá v DB, klient jen zobrazuje výsledek.
+    Vážený průměr celkového přehledu se počítá v DB, klient jen zobrazuje výsledek.
     """
 
     def __init__(self, url: str, key: str):
@@ -107,3 +152,23 @@ class SupabaseAPIClient(BaseAPIClient):
     def get_students(self, class_id):
         res = self.sb.table("profiles").select("*").eq("role", "student").eq("class_id", class_id).execute().data
         return [User(r["id"], r["full_name"], Role.STUDENT, class_id) for r in res]
+
+    def get_subjects(self, class_id):
+        res = self.sb.table("subjects").select("name").eq("class_id", class_id).order("name").execute().data
+        return [r["name"] for r in res]
+
+    def add_subject(self, class_id, name):
+        # RLS policie ověří, že insert provádí učitel dané třídy
+        self.sb.table("subjects").upsert(
+            {"class_id": class_id, "name": name}, on_conflict="class_id,name"
+        ).execute()
+
+    def set_schedule_item(self, class_id, day, period, subject, room, teacher):
+        # vyžaduje unikátní constraint (class_id, day, period), viz sql/schema.sql
+        self.sb.table("schedule").upsert({
+            "class_id": class_id, "day": day, "period": period,
+            "subject": subject, "room": room, "teacher": teacher,
+        }, on_conflict="class_id,day,period").execute()
+
+    def delete_schedule_item(self, class_id, day, period):
+        self.sb.table("schedule").delete().eq("class_id", class_id).eq("day", day).eq("period", period).execute()
