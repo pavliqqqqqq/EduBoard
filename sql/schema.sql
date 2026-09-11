@@ -33,10 +33,20 @@ create table subjects (
     unique (class_id, name)  -- nutné pro upsert při přidání nového předmětu
 );
 
+create table messages (
+    id uuid primary key default gen_random_uuid(),
+    student_id uuid not null references profiles(id),   -- identifikuje vlákno (žák <-> jeho učitel)
+    sender_id uuid not null references profiles(id),
+    sender_name text not null,
+    content text not null,   -- ŠIFROVANÝ obsah (Fernet, viz crypto.py) - server nikdy nevidí čitelný text
+    created_at timestamptz not null default now()
+);
+
 alter table grades enable row level security;
 alter table profiles enable row level security;
 alter table schedule enable row level security;
 alter table subjects enable row level security;
+alter table messages enable row level security;
 
 create policy student_sees_own_grades on grades for select
     using (student_id = auth.uid());
@@ -67,6 +77,32 @@ create policy teacher_manages_subjects on subjects for all
                    where p.id = auth.uid() and p.role = 'teacher' and p.class_id = subjects.class_id))
     with check (exists (select 1 from profiles p
                         where p.id = auth.uid() and p.role = 'teacher' and p.class_id = subjects.class_id));
+
+-- zprávy vidí žák (svoje vlákno) a učitel dané třídy (vlákna svých žáků)
+create policy sees_own_thread_messages on messages for select
+    using (
+        student_id = auth.uid()
+        or exists (
+            select 1 from profiles p
+            where p.id = auth.uid() and p.role = 'teacher'
+            and p.class_id = (select class_id from profiles where id = messages.student_id)
+        )
+    );
+
+-- posílat smí jen sám za sebe (sender_id = auth.uid()), a to buď žák do
+-- svého vlákna, nebo učitel dané třídy do vlákna svého žáka
+create policy sends_own_thread_messages on messages for insert
+    with check (
+        sender_id = auth.uid()
+        and (
+            student_id = auth.uid()
+            or exists (
+                select 1 from profiles p
+                where p.id = auth.uid() and p.role = 'teacher'
+                and p.class_id = (select class_id from profiles where id = messages.student_id)
+            )
+        )
+    );
 
 create or replace function get_student_grades_with_average(p_student_id uuid)
 returns table(id uuid, subject text, value int, weight int, note text, weighted_average numeric)

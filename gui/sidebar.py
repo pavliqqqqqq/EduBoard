@@ -1,6 +1,6 @@
 import customtkinter as ctk
 
-NAV_ITEMS = [
+DEFAULT_NAV_ITEMS = [
     ("home", "🏠", "Domů"),
     ("schedule", "📅", "Rozvrh"),
     ("grades", "📖", "Žákovská knížka"),
@@ -11,12 +11,20 @@ COLLAPSED_WIDTH = 64
 ANIMATION_STEPS = 8
 ANIMATION_DELAY_MS = 8
 
+# Tlačítka mají v klidu vlastní (byť jemné) pozadí - transparentní tlačítko
+# splývá s panelem, dokud na něj uživatel nenajede myší.
+BTN_IDLE = ("gray80", "gray24")
+BTN_HOVER = ("gray68", "gray32")
+BTN_ACTIVE = ("gray60", "#3a7ebf")
+TEXT_COLOR = ("gray10", "gray92")
+
 
 class Sidebar(ctk.CTkFrame):
     """Postranní navigace. Lze sbalit na úzký pruh s ikonami a zase vysunout."""
 
     def __init__(self, master, user_name: str, user_role: str, expanded: bool,
-                 appearance_mode: str, on_navigate, on_toggle_theme, on_logout):
+                 appearance_mode: str, on_navigate, on_toggle_theme, on_logout,
+                 nav_items=None):
         super().__init__(master, width=EXPANDED_WIDTH if expanded else COLLAPSED_WIDTH, corner_radius=0)
         self.grid_propagate(False)
         self.on_navigate = on_navigate
@@ -24,27 +32,30 @@ class Sidebar(ctk.CTkFrame):
         self.expanded = expanded
         self._current_key = "home"
         self._nav_buttons = {}
+        self.nav_items = nav_items or DEFAULT_NAV_ITEMS
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)  # prázdný prostor mezi navigací a patičkou
 
         self.toggle_btn = ctk.CTkButton(
             self, text="☰", width=36, height=36, corner_radius=8,
-            fg_color="transparent", hover_color=("gray80", "gray25"),
+            fg_color=BTN_IDLE, hover_color=BTN_HOVER, text_color=TEXT_COLOR,
             command=self._toggle,
         )
         self.toggle_btn.grid(row=0, column=0, padx=12, pady=(16, 4), sticky="w")
 
-        self.brand_label = ctk.CTkLabel(self, text="EduBoard", font=ctk.CTkFont(size=17, weight="bold"))
+        self.brand_label = ctk.CTkLabel(
+            self, text="EduBoard", font=ctk.CTkFont(size=17, weight="bold"), text_color=TEXT_COLOR
+        )
         self.brand_label.grid(row=1, column=0, padx=16, pady=(4, 18), sticky="w")
 
         nav_frame = ctk.CTkFrame(self, fg_color="transparent")
         nav_frame.grid(row=2, column=0, sticky="new", padx=8)
         nav_frame.grid_columnconfigure(0, weight=1)
-        for i, (key, icon, label) in enumerate(NAV_ITEMS):
+        for i, (key, icon, label) in enumerate(self.nav_items):
             btn = ctk.CTkButton(
                 nav_frame, text=f"{icon}   {label}", anchor="w", corner_radius=8, height=38,
-                fg_color="transparent", hover_color=("gray80", "gray25"),
+                fg_color=BTN_IDLE, hover_color=BTN_HOVER, text_color=TEXT_COLOR,
                 command=lambda k=key: self._select(k),
             )
             btn.grid(row=i, column=0, sticky="ew", pady=3)
@@ -59,18 +70,19 @@ class Sidebar(ctk.CTkFrame):
         self.theme_switch = ctk.CTkSwitch(
             bottom, text="Tmavý režim", command=self._on_theme_toggle,
             onvalue="dark", offvalue="light", variable=self.theme_switch_var,
+            text_color=TEXT_COLOR,
         )
         self.theme_switch.grid(row=0, column=0, sticky="w", padx=4, pady=(0, 10))
 
         self.user_label = ctk.CTkLabel(
             bottom, text=f"{user_name}\n{user_role}", justify="left", anchor="w",
-            font=ctk.CTkFont(size=12), text_color=("gray30", "gray70"),
+            font=ctk.CTkFont(size=12), text_color=("gray25", "gray75"),
         )
         self.user_label.grid(row=1, column=0, sticky="w", padx=4, pady=(0, 8))
 
         self.logout_btn = ctk.CTkButton(
             bottom, text="⏻   Odhlásit se", anchor="w", corner_radius=8,
-            fg_color="transparent", hover_color=("gray80", "gray25"),
+            fg_color=BTN_IDLE, hover_color=BTN_HOVER, text_color=TEXT_COLOR,
             command=on_logout,
         )
         self.logout_btn.grid(row=2, column=0, sticky="ew")
@@ -80,7 +92,11 @@ class Sidebar(ctk.CTkFrame):
 
     def _select(self, key: str, silent: bool = False):
         for k, (btn, _icon, _label) in self._nav_buttons.items():
-            btn.configure(fg_color=("gray75", "gray30") if k == key else "transparent")
+            active = k == key
+            btn.configure(
+                fg_color=BTN_ACTIVE if active else BTN_IDLE,
+                text_color=("gray97", "gray97") if active else TEXT_COLOR,
+            )
         self._current_key = key
         if not silent:
             self.on_navigate(key)

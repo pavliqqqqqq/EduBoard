@@ -1,10 +1,12 @@
 import customtkinter as ctk
 from api_client import BaseAPIClient
-from models import User
+from models import User, Role
 from gui.sidebar import Sidebar
 from gui.home_view import HomeView
 from gui.schedule_view import ScheduleView
 from gui.grades_view import GradesView
+from gui.messages_view import MessagesView
+from gui.students_view import StudentsView
 from auth import SessionManager
 import settings as settings_module
 
@@ -18,16 +20,26 @@ class MainWindow(ctk.CTk):
         ctk.set_appearance_mode(self.settings.get("appearance_mode", "dark"))
 
         self.title(f"EduBoard – {user.name} ({user.role.value})")
-        self.geometry("1000x660")
-        self.minsize(780, 540)
+        self.geometry("1040x680")
+        self.minsize(800, 560)
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
+        nav_items = [
+            ("home", "🏠", "Domů"),
+            ("schedule", "📅", "Rozvrh"),
+            ("grades", "📖", "Žákovská knížka"),
+            ("messages", "✉️", "Zprávy"),
+        ]
+        if user.role == Role.TEACHER:
+            nav_items.append(("students", "👥", "Žáci"))
+
         self.sidebar = Sidebar(
             self,
+            nav_items=nav_items,
             user_name=user.name,
-            user_role="Učitel" if user.role.value == "teacher" else "Žák",
+            user_role="Učitel" if user.role == Role.TEACHER else "Žák",
             expanded=self.settings.get("sidebar_expanded", True),
             appearance_mode=self.settings.get("appearance_mode", "dark"),
             on_navigate=self._navigate,
@@ -45,7 +57,11 @@ class MainWindow(ctk.CTk):
             "home": HomeView(content, api, user, self.settings, self._on_settings_changed),
             "schedule": self._build_page(content, "📅  Rozvrh", ScheduleView),
             "grades": self._build_page(content, "📖  Žákovská knížka", GradesView),
+            "messages": self._build_page(content, "✉️  Zprávy", MessagesView),
         }
+        if user.role == Role.TEACHER:
+            self.pages["students"] = self._build_page(content, "👥  Žáci", StudentsView)
+
         for page in self.pages.values():
             page.grid(row=0, column=0, sticky="nsew")
 

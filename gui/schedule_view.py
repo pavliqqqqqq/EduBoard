@@ -120,6 +120,11 @@ class ScheduleView(ctk.CTkFrame):
         ctk.CTkButton(btns, text="Uložit", command=save).pack(side="left", padx=5)
         if item:
             ctk.CTkButton(
-                btns, text="Smazat", fg_color="firebrick3", hover_color="firebrick4", command=delete
+                btns, text="Smazat", fg_color=("firebrick3", "firebrick4"),
+                hover_color=("firebrick4", "firebrick3"), command=delete,
             ).pack(side="left", padx=5)
-        ctk.CTkButton(btns, text="Zrušit", fg_color="gray40", command=dialog.destroy).pack(side="left", padx=5)
+        ctk.CTkButton(
+            btns, text="Zrušit", fg_color=("gray65", "gray35"),
+            hover_color=("gray55", "gray45"), text_color=("gray10", "gray95"),
+            command=dialog.destroy,
+        ).pack(side="left", padx=5)

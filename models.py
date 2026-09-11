@@ -32,3 +32,13 @@ class ScheduleItem:
     subject: str
     room: str = ""
     teacher: str = ""
+
+
+@dataclass
+class Message:
+    id: str
+    student_id: str    # identifikuje konverzační vlákno (žák <-> jeho učitel)
+    sender_id: str
+    sender_name: str
+    content: str        # už dešifrovaný, čitelný text (pro zobrazení v GUI)
+    created_at: str = ""

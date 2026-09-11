@@ -15,11 +15,11 @@ class LoginWindow(ctk.CTk):
 
         self.email_entry = ctk.CTkEntry(self, placeholder_text="E-mail", width=260)
         self.email_entry.pack(pady=8)
-        self.email_entry.insert(0, "student@skola.cz")
+        self.email_entry.insert(0, "psvoboda@skola.cz")
 
         self.pass_entry = ctk.CTkEntry(self, placeholder_text="Heslo", show="•", width=260)
         self.pass_entry.pack(pady=8)
-        self.pass_entry.insert(0, "heslo123")
+        self.pass_entry.insert(0, "1234")
 
         self.error_label = ctk.CTkLabel(self, text="", text_color="red")
         self.error_label.pack(pady=4)
