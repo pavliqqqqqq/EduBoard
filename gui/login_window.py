@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from api_client import BaseAPIClient
 from auth import SessionManager
+from theme import AppTheme
 
 
 class LoginWindow(ctk.CTk):
@@ -8,23 +9,28 @@ class LoginWindow(ctk.CTk):
         super().__init__()
         self.api = api
         self.title("EduBoard – přihlášení")
-        self.geometry("380x300")
+        self.geometry("400x460")
         self.resizable(False, False)
 
-        ctk.CTkLabel(self, text="EduBoard", font=("Arial", 24, "bold")).pack(pady=(30, 10))
+        card = ctk.CTkFrame(self, corner_radius=18)
+        card.pack(expand=True, fill="both", padx=30, pady=30)
 
-        self.email_entry = ctk.CTkEntry(self, placeholder_text="E-mail", width=260)
+        ctk.CTkLabel(
+            card, text="EduBoard", font=("Arial", 26, "bold"), text_color=AppTheme.instance().accent
+        ).pack(pady=(40, 26))
+
+        self.email_entry = ctk.CTkEntry(card, placeholder_text="E-mail", width=280, height=38)
         self.email_entry.pack(pady=8)
         self.email_entry.insert(0, "psvoboda@skola.cz")
 
-        self.pass_entry = ctk.CTkEntry(self, placeholder_text="Heslo", show="•", width=260)
+        self.pass_entry = ctk.CTkEntry(card, placeholder_text="Heslo", show="•", width=280, height=38)
         self.pass_entry.pack(pady=8)
         self.pass_entry.insert(0, "1234")
 
-        self.error_label = ctk.CTkLabel(self, text="", text_color="red")
+        self.error_label = ctk.CTkLabel(card, text="", text_color="#ff6b6b")
         self.error_label.pack(pady=4)
 
-        ctk.CTkButton(self, text="Přihlásit se", width=260, command=self._login).pack(pady=12)
+        ctk.CTkButton(card, text="Přihlásit se", width=280, height=40, command=self._login).pack(pady=20)
 
     def _login(self):
         try:

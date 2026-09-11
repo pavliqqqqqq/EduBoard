@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from theme import DEFAULT_ACCENT
 
 # Nastavení se ukládá mimo repozitář (do domovské složky uživatele), takže
 # přežije aktualizace appky a nekončí omylem v gitu.
@@ -7,6 +8,7 @@ SETTINGS_PATH = Path.home() / ".eduboard" / "settings.json"
 
 DEFAULT_SETTINGS = {
     "appearance_mode": "dark",
+    "accent_color": DEFAULT_ACCENT,
     "sidebar_expanded": True,
     "home_widgets": {
         "today_schedule": True,

@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from theme import AppTheme
 
 DEFAULT_NAV_ITEMS = [
     ("home", "🏠", "Domů"),
@@ -15,7 +16,6 @@ ANIMATION_DELAY_MS = 8
 # splývá s panelem, dokud na něj uživatel nenajede myší.
 BTN_IDLE = ("gray80", "gray24")
 BTN_HOVER = ("gray68", "gray32")
-BTN_ACTIVE = ("gray60", "#3a7ebf")
 TEXT_COLOR = ("gray10", "gray92")
 
 
@@ -23,14 +23,12 @@ class Sidebar(ctk.CTkFrame):
     """Postranní navigace. Lze sbalit na úzký pruh s ikonami a zase vysunout."""
 
     def __init__(self, master, user_name: str, user_role: str, expanded: bool,
-                 appearance_mode: str, on_navigate, on_toggle_theme, on_logout,
-                 nav_items=None):
+                 on_navigate, on_logout, nav_items=None, initial_key: str = "home"):
         super().__init__(master, width=EXPANDED_WIDTH if expanded else COLLAPSED_WIDTH, corner_radius=0)
         self.grid_propagate(False)
         self.on_navigate = on_navigate
-        self._on_toggle_theme_cb = on_toggle_theme
         self.expanded = expanded
-        self._current_key = "home"
+        self._current_key = initial_key
         self._nav_buttons = {}
         self.nav_items = nav_items or DEFAULT_NAV_ITEMS
 
@@ -66,45 +64,33 @@ class Sidebar(ctk.CTkFrame):
         bottom.grid_columnconfigure(0, weight=1)
         self.bottom = bottom
 
-        self.theme_switch_var = ctk.StringVar(value=appearance_mode)
-        self.theme_switch = ctk.CTkSwitch(
-            bottom, text="Tmavý režim", command=self._on_theme_toggle,
-            onvalue="dark", offvalue="light", variable=self.theme_switch_var,
-            text_color=TEXT_COLOR,
-        )
-        self.theme_switch.grid(row=0, column=0, sticky="w", padx=4, pady=(0, 10))
-
         self.user_label = ctk.CTkLabel(
             bottom, text=f"{user_name}\n{user_role}", justify="left", anchor="w",
             font=ctk.CTkFont(size=12), text_color=("gray25", "gray75"),
         )
-        self.user_label.grid(row=1, column=0, sticky="w", padx=4, pady=(0, 8))
+        self.user_label.grid(row=0, column=0, sticky="w", padx=4, pady=(0, 8))
 
         self.logout_btn = ctk.CTkButton(
             bottom, text="⏻   Odhlásit se", anchor="w", corner_radius=8,
             fg_color=BTN_IDLE, hover_color=BTN_HOVER, text_color=TEXT_COLOR,
             command=on_logout,
         )
-        self.logout_btn.grid(row=2, column=0, sticky="ew")
+        self.logout_btn.grid(row=1, column=0, sticky="ew")
 
-        self._select("home", silent=True)
+        self._select(initial_key, silent=True)
         self._apply_expanded_state(animate=False)
 
     def _select(self, key: str, silent: bool = False):
+        accent = AppTheme.instance().accent
         for k, (btn, _icon, _label) in self._nav_buttons.items():
             active = k == key
             btn.configure(
-                fg_color=BTN_ACTIVE if active else BTN_IDLE,
-                text_color=("gray97", "gray97") if active else TEXT_COLOR,
+                fg_color=accent if active else BTN_IDLE,
+                text_color="white" if active else TEXT_COLOR,
             )
         self._current_key = key
         if not silent:
             self.on_navigate(key)
-
-    def _on_theme_toggle(self):
-        mode = self.theme_switch_var.get()
-        ctk.set_appearance_mode(mode)
-        self._on_toggle_theme_cb(mode)
 
     def _toggle(self):
         self.expanded = not self.expanded
@@ -116,14 +102,12 @@ class Sidebar(ctk.CTkFrame):
         if self.expanded:
             self.brand_label.grid()
             self.user_label.grid()
-            self.theme_switch.configure(text="Tmavý režim")
             for key, (btn, icon, label) in self._nav_buttons.items():
                 btn.configure(text=f"{icon}   {label}", anchor="w")
             self.logout_btn.configure(text="⏻   Odhlásit se", anchor="w")
         else:
             self.brand_label.grid_remove()
             self.user_label.grid_remove()
-            self.theme_switch.configure(text="")
             for key, (btn, icon, label) in self._nav_buttons.items():
                 btn.configure(text=icon, anchor="center")
             self.logout_btn.configure(text="⏻", anchor="center")
