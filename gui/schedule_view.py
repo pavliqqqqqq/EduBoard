@@ -52,8 +52,14 @@ class ScheduleView(ctk.CTkFrame):
         dialog = ctk.CTkToplevel(self)
         dialog.title(f"{DAYS[day]}, {period}. hodina")
         dialog.geometry("320x300")
-        dialog.grab_set()
         dialog.resizable(False, False)
+        dialog.transient(self.winfo_toplevel())
+        # Na macOS grab_set() volaný hned po vytvoření okna dokáže okno
+        # "zaseknout" dřív, než ho okenní manažer stihne vykreslit.
+        # Počkáme na něj krátkým zpožděním.
+        dialog.after(150, dialog.lift)
+        dialog.after(150, dialog.focus_force)
+        dialog.after(200, dialog.grab_set)
 
         subjects = self.api.get_subjects(self.user.class_id)
 
